@@ -1,0 +1,103 @@
+---
+title: "Lab 1 Practice"
+author: "Max"
+format:
+  html: 
+    code-fold: true
+    toc: true
+execute: 
+  echo: true
+  message: false
+  warning: false
+editor: visual
+---
+
+Install packages
+
+```{r setup}
+library(tidyverse)
+library(gapminder)
+library(janitor)
+```
+
+Load the gapminder data and clean the variable names
+
+```{r load data}
+gapminder_mod <- gapminder %>% 
+  clean_names()
+```
+
+## Exercise 3:
+
+For each year and continent, summarize the average per-capita GDP across all countries in the continent. Hint: don't just average the country-level values - need to consider country populations!
+
+Continent-level mean per capita GDP (gross domestic product per person) is population-weighted average of per-capita GDP.
+
+```{r}
+continent_mean_gdp <- gapminder_mod %>% 
+  group_by(year, continent) %>% 
+  summarize(mean_gdp = sum(gdp_percap * pop) / sum(pop),
+            log_mean_gdp = log(mean_gdp)) %>% 
+  ungroup()
+```
+
+## Exercise 4:
+
+#### Plot the un-transformed data
+
+```{r}
+ggplot(continent_mean_gdp, aes(x = year, y = mean_gdp, color = continent)) +
+  geom_point() + 
+  geom_line() +
+  geom_jitter(data = gapminder_mod, aes(y = gdp_percap), alpha = 0.2) + 
+  theme_bw() +
+  labs(x = "Year", y = "Per capita GDP ($)", color = "Continent")
+```
+
+## Exercise 5:
+
+#### Plot the log transformed data (on a log scale)
+
+Ways to plot transformed data:
+
+-   Log-transform in the dataframe (use 'mutate')
+-   Log-transform on the fly
+-   Don't transform, but use log-scaled axis ('scale_y_log10()')
+
+```{r}
+ggplot(continent_mean_gdp, aes(x = year, y = mean_gdp, color = continent)) +
+  geom_point() +
+  geom_line() +
+  geom_jitter(data = gapminder_mod, aes(y = gdp_percap), alpha = .2) +
+  theme_bw() +
+  labs(x = "Year", y = "log(per capita GDP ($))", color = " ") +
+  scale_y_log10()
+```
+
+## Exercise 6:
+
+Based on the plots, choose either the regular or log transformed data, and use a linear regression to estimate annual change in per capita GDP \*\* OR \*\* log(per capita GDP) accounting for continent.
+
+Because I used the un-transformed data and only changes the scale of the y axis, I will use the regular data for the linear regression
+
+```{r}
+gdp_lm <- lm(mean_gdp ~ year + continent, data = continent_mean_gdp)
+
+summary(gdp_lm)
+
+gdp_coef <- coefficients(gdp_lm)
+
+gdp_coef
+```
+
+## Follow up questions:
+
+1.  Per capita GDP is increasing with year.
+
+2.  
+
+-   The year coeffiecient indicates that on average, across all continents, per capita GDP is increasing each year.
+-   The continent coefficients show how much greater, on average, per capita GDP is for each continent (shift in the intercept), relative to a baseline of Africa (which is baseline in this case because it is alphabetically first)
+-   The intercept would be the predicted per capita GDP (if our model is accurate) at year zero. Obviously our model breaks down somewhere along the way...
+
+3.  Because GDP growth is most likely exponential over time, the log-transformed model is theoretically a better choice. Because the slopes are (relatively) similar, it shows that per cap GDP growth is pretty consistent across continents (except Africa), even if the starting points are different. In either case, we know that any predictions we make with our model should be limited to a fairly narrow time frame - certainly not 2000 years, but maybe 20-30 years.
